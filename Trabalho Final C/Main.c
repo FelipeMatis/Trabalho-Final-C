@@ -366,7 +366,7 @@ void ArrumarErro(const char *nomeArquivo) {
                 if (registros[encontrado].mes < 1 || registros[encontrado].mes > 12) {
                 printf("Mes invalido!\n");
                 }
-        
+
 
                 break;
             case 3:
@@ -434,66 +434,56 @@ void ArrumarErro(const char *nomeArquivo) {
     printf("Dados alterados com sucesso e atualizados no arquivo.\n");
 }
 
-void Apagar(const char *nomeArquivo) {
-    if (total_registros == 0) {
-        printf("Nenhum dado cadastrado para apagar.\n");
+void removerRegistroPorData(const char *nomeArquivo) {
+    FILE *arquivo = fopen(nomeArquivo, "r");
+    if (!arquivo) {
+        printf("Erro ao abrir o arquivo para leitura!\n");
+        return;
+    }
+
+    FILE *temp = fopen("temp.txt", "w");
+    if (!temp) {
+        printf("Erro ao criar arquivo temporário!\n");
+        fclose(arquivo);
         return;
     }
 
     int ano, mes, dia;
-    printf("Informe o ano (YYYY): ");
-    scanf("%d", &ano);
-    printf("Informe o mes (MM): ");
-    scanf("%d", &mes);
-    printf("Informe o dia (DD): ");
-    scanf("%d", &dia);
+    printf("Informe a data do registro que deseja remover (YYYY MM DD): ");
+    scanf("%d %d %d", &ano, &mes, &dia);
 
-    int novo_total = 0;
-    Analise *novos_registros = malloc(total_registros * sizeof(Analise));
-    if (novos_registros == NULL) {
-        printf("Erro de alocação de memória.\n");
-        return;
-    }
+    char buffer[256];
+    int apagar = 0; // Flag para identificar o bloco a ser apagado
 
-    // Filtrar registros que NÃO serão excluídos
-    for (int i = 0; i < total_registros; i++) {
-        if (!(registros[i].ano == ano && registros[i].mes == mes && registros[i].dia == dia)) {
-            novos_registros[novo_total++] = registros[i];
+    while (fgets(buffer, sizeof(buffer), arquivo)) {
+        // Se encontrar um novo registro, verifica se deve apagar ou não
+        if (strstr(buffer, "Cadastro - Data:") != NULL) {
+            int a, m, d;
+            sscanf(buffer, "Cadastro - Data: %d-%d-%d", &a, &m, &d);
+
+            if (a == ano && m == mes && d == dia) {
+                apagar = 1; // Encontrou o registro, ativa a flag para removê-lo
+                continue;    // Pula a escrita desse cabeçalho no arquivo temporário
+            } else {
+                apagar = 0;  // Encontrou um novo registro diferente, então para de apagar
+            }
+        }
+
+        // Somente escreve no novo arquivo se a flag `apagar` não estiver ativada
+        if (!apagar) {
+            fputs(buffer, temp);
         }
     }
 
-    if (novo_total == total_registros) {
-        printf("Nenhum registro encontrado para essa data.\n");
-        free(novos_registros);
-        return;
-    }
-
-    // Realocar registros
-    total_registros = realloc(registros, novo_total * sizeof(Analise));
-    if (registros == NULL && novo_total > 0) {  // Verifica falha na realocação
-        printf("Erro ao realocar memória.\n");
-        free(novos_registros);
-        return;
-    }
-
-    memcpy(registros, novos_registros, novo_total * sizeof(Analise));
-    total_registros = novo_total;
-    free(novos_registros);
-
-    // Atualizar o arquivo
-    FILE *arquivo = fopen(nomeArquivo, "w");
-    if (arquivo == NULL) {
-        printf("Erro ao abrir o arquivo para atualizar.\n");
-        return;
-    }
-
-    for (int i = 0; i < total_registros; i++) {
-        fprintf(arquivo, "%d %d %d\n", registros[i].ano, registros[i].mes, registros[i].dia);
-    }
     fclose(arquivo);
+    fclose(temp);
 
-    printf("Registro(s) removido(s) com sucesso.\n");
+    remove(nomeArquivo);
+    rename("temp.txt", nomeArquivo);
+
+    printf("Registro de %04d-%02d-%02d removido com sucesso!\n", ano, mes, dia);
 }
+
 
 
 
@@ -534,7 +524,7 @@ int main() {
                 ArrumarErro(nomeArquivo);
                 break;
             case 7:
-                Apagar(nomeArquivo);
+               removerRegistroPorData(nomeArquivo);
                 break;
             case 8:
                 printf("Encerrando o programa.\n");
@@ -542,7 +532,7 @@ int main() {
             default:
                 printf("Opcao invalida! Tente novamente.\n");
         }
-    } while (opcao != 7);
+    } while (opcao != 8);
 
     return 0;
 }
