@@ -9,7 +9,7 @@ typedef struct {
     int mes;
     int dia;
     int temp_min, temp_max, temp_media;
-    char precipitacao[50];
+    float precipitacao;
     int umidade;
     float velocidade_vento;
 } Analise;
@@ -23,7 +23,7 @@ void salvarCadastroNoArquivo(const char *nomeArquivo, Analise A) {
         printf("Erro ao abrir o arquivo para salvar o cadastro!\n");
         return;
     }
-    fprintf(arquivo, "Cadastro - Data: %04d-%02d-%02d\nTemperatura Minima: %d\nTemperatura Maxima: %d\nTemperatura Media: %d\nPrecipitacao: %s\nUmidade do Ar: %d\nVelocidade do Vento: %.2f\n\n",
+    fprintf(arquivo, "Cadastro - Data: %04d-%02d-%02d\nTemperatura Minima: %d\nTemperatura Maxima: %d\nTemperatura Media: %d\nPrecipitacao: %.2f mm\nUmidade do Ar: %d\nVelocidade do Vento: %.2f km/h\n\n",
             A.ano, A.mes, A.dia, A.temp_min, A.temp_max, A.temp_media, A.precipitacao, A.umidade, A.velocidade_vento);
     fclose(arquivo);
 }
@@ -92,14 +92,23 @@ void identificarExtremos(const char *nomeArquivo) {
     char diaMaiorTemp[20], diaMenorTemp[20];
     char relatorio[5000] = "Relatorio de Dias com Extremos:\n";
 
-    identificarExtremosRecursivo(0, &maiorTemp, &menorTemp, diaMaiorTemp, diaMenorTemp);
+    for (int i = 0; i < total_registros; i++) {
+        if (registros[i].temp_max > maiorTemp) {
+            maiorTemp = registros[i].temp_max;
+            sprintf(diaMaiorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+        if (registros[i].temp_min < menorTemp) {
+            menorTemp = registros[i].temp_min;
+            sprintf(diaMenorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+    }
 
     sprintf(relatorio + strlen(relatorio),
             "Dia mais quente: %s com %d°C\nDia mais frio: %s com %d°C\n",
             diaMaiorTemp, maiorTemp, diaMenorTemp, menorTemp);
 
     for (int i = 0; i < total_registros; i++) {
-        if (strcmp(registros[i].precipitacao, "Chuva Intensa") == 0) {
+        if (registros[i].precipitacao > 50.0) {
             char linha[100];
             sprintf(linha, "Chuva Intensa registrada em: %04d-%02d-%02d\n",
                     registros[i].ano, registros[i].mes, registros[i].dia);
@@ -116,10 +125,7 @@ void identificarExtremos(const char *nomeArquivo) {
     }
     fprintf(arquivo, "%s\n", relatorio);
     fclose(arquivo);
-
-    printf("Relatorio de extremos salvo no arquivo '%s'.\n", nomeArquivo);
 }
-
 
 
 void gerarRelatorioAnual(const char *nomeArquivo) {
@@ -147,11 +153,11 @@ void gerarRelatorioAnual(const char *nomeArquivo) {
 
             if (tempAnterior != -1) {
                 if (media > tempAnterior) {
-                    strcat(relatorio, "Tendencia: Aumento de temperatura em relacao ao ano anterior.\n");
+                    strcat(relatorio, "Tendencia: Aumento de temperatura.\n");
                 } else if (media < tempAnterior) {
-                    strcat(relatorio, "Tendencia: Reducao de temperatura em relacao ao ano anterior.\n");
+                    strcat(relatorio, "Tendencia: Reducao de temperatura.\n");
                 } else {
-                    strcat(relatorio, "Tendencia: Temperatura estavel em relacao ao ano anterior.\n");
+                    strcat(relatorio, "Tendencia: Temperatura estavel.\n");
                 }
             }
 
@@ -179,8 +185,6 @@ void cadastrarDados(const char *nomeArquivo) {
     }
 
     Analise A;
-    int opcao2 = 0;
-
     printf("Informe o ano (YYYY): ");
     scanf("%d", &A.ano);
     if (A.ano > 2025 || A.ano < 1) {
@@ -197,60 +201,38 @@ void cadastrarDados(const char *nomeArquivo) {
 
     printf("Informe o dia (DD): ");
     scanf("%d", &A.dia);
-    if ((A.dia < 1) ||
-        (A.mes == 2 && A.dia > 28) ||
-        ((A.mes == 4 || A.mes == 6 || A.mes == 9 || A.mes == 11) && A.dia > 30) ||
-        (A.dia > 31)) {
+    if ((A.dia < 1) || (A.dia > 31)) {
         printf("Dia invalido!\n");
         return;
     }
 
     printf("Informe a Temperatura Maxima: ");
     scanf("%d", &A.temp_max);
-    if(A.temp_max>50){
-        printf("Temperatura muito alta!\n");
-        return;
-    }
-
     printf("Informe a Temperatura Minima: ");
     scanf("%d", &A.temp_min);
-    if(A.temp_min < -14){
-        printf("O Brasil nao chega a essa temperatura.\n");
-        return;
-    }
-
     A.temp_media = (A.temp_min + A.temp_max) / 2;
 
     printf("Informe a Umidade do Ar (%%): ");
     scanf("%d", &A.umidade);
-    if(A.umidade>100 || A.umidade<0){
-        printf("Erro! Umidade invalida.\n");
-        return;
-    }
 
-    printf("Escolha o tipo de precipitacao:\n1- Tempo Normal\n2- Garoa\n3- Chuva\n4- Chuva Intensa\n5- Neve\n6- Granizo\n7- Geada\n");
-    scanf("%d", &opcao2);
-
-    const char *tipos_precipitacao[] = {
-        "Tempo Normal", "Garoa", "Chuva", "Chuva Intensa", "Neve", "Granizo", "Geada"
-    };
-    if (opcao2 >= 1 && opcao2 <= 7) {
-        strcpy(A.precipitacao, tipos_precipitacao[opcao2 - 1]);
-    } else {
-        strcpy(A.precipitacao, "Nao especificado");
+    printf("Digite a precipitacao em milimetros (mm): ");
+    while (1) {
+        if (scanf("%f", &A.precipitacao) == 1 && A.precipitacao >= 0) {
+            break;
+        } else {
+            printf("Valor invalido! Digite um numero positivo para a precipitacao: ");
+            while (getchar() != '\n');
+        }
     }
 
     printf("Informe a Velocidade do Vento (km/h): ");
     scanf("%f", &A.velocidade_vento);
-    if(A.velocidade_vento > 408 || A.velocidade_vento < 0) {
-        printf("Erro! Velocidade do vento invalida.\n");
-        return;
-    }
 
     registros[total_registros++] = A;
     salvarCadastroNoArquivo(nomeArquivo, A);
     printf("Dados cadastrados com sucesso!\n");
 }
+
 void detectarComportamentosAnormais(const char *nomeArquivo) {
     if (total_registros == 0) {
         printf("Nenhum dado cadastrado para detectar comportamentos anormais.\n");
@@ -258,7 +240,6 @@ void detectarComportamentosAnormais(const char *nomeArquivo) {
     }
 
     int somaTemp[12] = {0}, somaUmidade[12] = {0}, contador[12] = {0};
-    int extremosChuva[12] = {0};
     char relatorio[5000] = "Relatorio de Comportamentos Anormais:\n";
 
     for (int i = 0; i < total_registros; i++) {
@@ -266,21 +247,13 @@ void detectarComportamentosAnormais(const char *nomeArquivo) {
         somaTemp[mes] += registros[i].temp_media;
         somaUmidade[mes] += registros[i].umidade;
         contador[mes]++;
-
-        if (strcmp(registros[i].precipitacao, "Chuva Intensa") == 0 ||
-            strcmp(registros[i].precipitacao, "Granizo") == 0) {
-            extremosChuva[mes]++;
-        }
     }
-
 
     for (int i = 0; i < total_registros; i++) {
         int mes = registros[i].mes - 1;
-
         if (contador[mes] > 0) {
             int mediaTemp = somaTemp[mes] / contador[mes];
             int mediaUmidade = somaUmidade[mes] / contador[mes];
-
 
             if (abs(registros[i].temp_media - mediaTemp) > 5) {
                 char linha[200];
@@ -289,7 +262,6 @@ void detectarComportamentosAnormais(const char *nomeArquivo) {
                 strcat(relatorio, linha);
             }
 
-
             if (abs(registros[i].umidade - mediaUmidade) > 10) {
                 char linha[200];
                 sprintf(linha, "Umidade anormal em %04d-%02d: Media %d%%, registrada %d%%\n",
@@ -297,23 +269,17 @@ void detectarComportamentosAnormais(const char *nomeArquivo) {
                 strcat(relatorio, linha);
             }
         }
-
-        if (extremosChuva[mes] > (contador[mes] / 2)) {
-            char linha[200];
-            sprintf(linha, "Chuva excessiva detectada no mes %02d do ano %04d\n", registros[i].mes, registros[i].ano);
-            strcat(relatorio, linha);
-        }
     }
 
-
     FILE *arquivo = fopen(nomeArquivo, "a");
-    if (arquivo == NULL) {
+    if (!arquivo) {
         printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
         return;
     }
     fprintf(arquivo, "%s\n", relatorio);
     fclose(arquivo);
 
+    printf("%s", relatorio);
     printf("Relatorio de comportamentos anormais salvo no arquivo '%s'.\n", nomeArquivo);
 }
 
@@ -354,61 +320,62 @@ void ArrumarErro(const char *nomeArquivo) {
 
         switch (opcao) {
             case 1:
-                printf("Novo ano:");
+                printf("Novo ano: ");
                 scanf("%d", &registros[encontrado].ano);
                 if (registros[encontrado].ano > 2025 || registros[encontrado].ano < 1) {
-                printf("Ano invalido!\n");
+                    printf("Ano invalido!\n");
                 }
                 break;
             case 2:
                 printf("Novo mes: ");
                 scanf("%d", &registros[encontrado].mes);
                 if (registros[encontrado].mes < 1 || registros[encontrado].mes > 12) {
-                printf("Mes invalido!\n");
+                    printf("Mes invalido!\n");
                 }
-
-
                 break;
             case 3:
                 printf("Novo dia: ");
                 scanf("%d", &registros[encontrado].dia);
                 if ((registros[encontrado].dia < 1) ||
-            (registros[encontrado].dia == 2 && registros[encontrado].dia > 28) ||
-            ((registros[encontrado].mes == 4 || registros[encontrado].mes == 6 || registros[encontrado].mes == 9 || registros[encontrado].mes == 11) && registros[encontrado].dia > 30) ||
-            (registros[encontrado].dia > 31)) {
-            printf("Dia invalido!\n");
-            }
+                    (registros[encontrado].mes == 2 && registros[encontrado].dia > 28) ||
+                    ((registros[encontrado].mes == 4 || registros[encontrado].mes == 6 || registros[encontrado].mes == 9 || registros[encontrado].mes == 11) && registros[encontrado].dia > 30) ||
+                    (registros[encontrado].dia > 31)) {
+                    printf("Dia invalido!\n");
+                }
                 break;
             case 4:
                 printf("Nova temperatura maxima: ");
                 scanf("%d", &registros[encontrado].temp_max);
-                if(registros[encontrado].temp_max>50){
-                printf("Temperatura muito alta!\n");
+                if (registros[encontrado].temp_max > 50) {
+                    printf("Temperatura muito alta!\n");
                 }
                 break;
             case 5:
                 printf("Nova temperatura minima: ");
                 scanf("%d", &registros[encontrado].temp_min);
-                if(registros[encontrado].temp_min < -14){
-            printf("O Brasil nao chega a essa temperatura.\n");
-            }
+                if (registros[encontrado].temp_min < -14) {
+                    printf("O Brasil nao chega a essa temperatura.\n");
+                }
                 break;
             case 6:
                 printf("Nova umidade do ar: ");
                 scanf("%d", &registros[encontrado].umidade);
-                if(registros[encontrado].umidade>100 || registros[encontrado].umidade<0){
-                printf("Erro! Umidade invalida.\n");
+                if (registros[encontrado].umidade > 100 || registros[encontrado].umidade < 0) {
+                    printf("Erro! Umidade invalida.\n");
                 }
                 break;
             case 7:
-                printf("Nova precipitacao: ");
-                scanf(" %49[^\n]", registros[encontrado].precipitacao);
+                printf("Nova precipitacao (em mm): ");
+                scanf("%f", &registros[encontrado].precipitacao);
+                if (registros[encontrado].precipitacao < 0) {
+                    printf("Erro! Precipitacao invalida.\n");
+                }
                 break;
             case 8:
-                printf("Nova velocidade do vento: ");
+                printf("Nova velocidade do vento (km/h): ");
                 scanf("%f", &registros[encontrado].velocidade_vento);
-                if(registros[encontrado].velocidade_vento > 408 || registros[encontrado].velocidade_vento < 0) {
-                printf("Erro! Velocidade do vento invalida.\n");
+                if (registros[encontrado].velocidade_vento > 408 || registros[encontrado].velocidade_vento < 0) {
+                    printf("Erro! Velocidade do vento invalida.\n");
                 }
                 break;
             case 9:
@@ -425,7 +392,7 @@ void ArrumarErro(const char *nomeArquivo) {
         return;
     }
     for (int i = 0; i < total_registros; i++) {
-        fprintf(arquivo, "Cadastro - Data: %04d-%02d-%02d\nTemperatura Minima: %d\nTemperatura Maxima: %d\nTemperatura Media: %d\nPrecipitacao: %s\nUmidade do Ar: %d\nVelocidade do Vento: %.2f\n\n",
+        fprintf(arquivo, "Cadastro - Data: %04d-%02d-%02d\nTemperatura Minima: %d\nTemperatura Maxima: %d\nTemperatura Media: %d\nPrecipitacao: %.2f mm\nUmidade do Ar: %d\nVelocidade do Vento: %.2f km/h\n\n",
                 registros[i].ano, registros[i].mes, registros[i].dia, registros[i].temp_min, registros[i].temp_max,
                 registros[i].temp_media, registros[i].precipitacao, registros[i].umidade, registros[i].velocidade_vento);
     }
@@ -434,58 +401,97 @@ void ArrumarErro(const char *nomeArquivo) {
     printf("Dados alterados com sucesso e atualizados no arquivo.\n");
 }
 
-void removerRegistroPorData(const char *nomeArquivo) {
+int removerRegistroPorData(const char *nomeArquivo) {
     FILE *arquivo = fopen(nomeArquivo, "r");
     if (!arquivo) {
         printf("Erro ao abrir o arquivo para leitura!\n");
-        return;
+        return 0;
     }
 
-    FILE *temp = fopen("temp.txt", "w");
-    if (!temp) {
-        printf("Erro ao criar arquivo temporário!\n");
-        fclose(arquivo);
-        return;
-    }
+    struct Registro {
+        int ano, mes, dia;
+        float tempMin, tempMax, tempMedia;
+        char precipitacao[50];
+        float umidade;
+        float velVento;
+    };
 
-    int ano, mes, dia;
+    struct Registro registros[1000];
+    int numRegistros = 0;
+    int anoParaRemover, mesParaRemover, diaParaRemover;
+
     printf("Informe a data do registro que deseja remover (YYYY MM DD): ");
-    scanf("%d %d %d", &ano, &mes, &dia);
+    scanf("%d %d %d", &anoParaRemover, &mesParaRemover, &diaParaRemover);
 
     char buffer[256];
-    int apagar = 0; // Flag para identificar o bloco a ser apagado
-
+    int lendoRegistro = 0;
     while (fgets(buffer, sizeof(buffer), arquivo)) {
-        // Se encontrar um novo registro, verifica se deve apagar ou não
         if (strstr(buffer, "Cadastro - Data:") != NULL) {
-            int a, m, d;
-            sscanf(buffer, "Cadastro - Data: %d-%d-%d", &a, &m, &d);
-
-            if (a == ano && m == mes && d == dia) {
-                apagar = 1; // Encontrou o registro, ativa a flag para removê-lo
-                continue;    // Pula a escrita desse cabeçalho no arquivo temporário
+            int ano, mes, dia;
+            sscanf(buffer, "Cadastro - Data: %d-%d-%d", &ano, &mes, &dia);
+            
+            if (ano != anoParaRemover || mes != mesParaRemover || dia != diaParaRemover) {
+                registros[numRegistros].ano = ano;
+                registros[numRegistros].mes = mes;
+                registros[numRegistros].dia = dia;
+                lendoRegistro = 1;
             } else {
-                apagar = 0;  // Encontrou um novo registro diferente, então para de apagar
+                lendoRegistro = 0;
+                continue;
             }
         }
-
-        // Somente escreve no novo arquivo se a flag `apagar` não estiver ativada
-        if (!apagar) {
-            fputs(buffer, temp);
+        
+        if (lendoRegistro) {
+            if (strstr(buffer, "Temperatura Minima:") != NULL)
+                sscanf(buffer, "Temperatura Minima: %f", &registros[numRegistros].tempMin);
+            else if (strstr(buffer, "Temperatura Maxima:") != NULL)
+                sscanf(buffer, "Temperatura Maxima: %f", &registros[numRegistros].tempMax);
+            else if (strstr(buffer, "Temperatura Media:") != NULL) {
+                sscanf(buffer, "Temperatura Media: %f", &registros[numRegistros].tempMedia);
+                numRegistros++;
+            }
         }
     }
-
     fclose(arquivo);
-    fclose(temp);
 
+    FILE *novoArquivo = fopen("temp.txt", "w");
+    if (!novoArquivo) {
+        printf("Erro ao criar arquivo temporário!\n");
+        return 0;
+    }
+
+    for (int i = 0; i < numRegistros; i++) {
+        fprintf(novoArquivo, "Cadastro - Data: %04d-%02d-%02d\n", 
+                registros[i].ano, registros[i].mes, registros[i].dia);
+        fprintf(novoArquivo, "Temperatura Minima: %.2f\n", registros[i].tempMin);
+        fprintf(novoArquivo, "Temperatura Maxima: %.2f\n", registros[i].tempMax);
+        fprintf(novoArquivo, "Temperatura Media: %.2f\n\n", registros[i].tempMedia);
+    }
+    
+    fprintf(novoArquivo, "=== Relatórios ===\n\n");
+    float mediaMensal[12] = {0};
+    int contMensal[12] = {0};
+    
+    for (int i = 0; i < numRegistros; i++) {
+        mediaMensal[registros[i].mes - 1] += registros[i].tempMedia;
+        contMensal[registros[i].mes - 1]++;
+    }
+    for (int i = 0; i < 12; i++) {
+        if (contMensal[i] > 0) {
+            fprintf(novoArquivo, "Mes %d: Media de Temperatura: %.1f°C\n", 
+                    i + 1, mediaMensal[i] / contMensal[i]);
+        }
+    }
+    fprintf(novoArquivo, "\n");
+
+    fclose(novoArquivo);
     remove(nomeArquivo);
     rename("temp.txt", nomeArquivo);
 
-    printf("Registro de %04d-%02d-%02d removido com sucesso!\n", ano, mes, dia);
+    printf("Registro de %04d-%02d-%02d removido e relatórios atualizados com sucesso!\n", 
+           anoParaRemover, mesParaRemover, diaParaRemover);
+    return 1;
 }
-
-
-
 
 int main() {
     int opcao;
