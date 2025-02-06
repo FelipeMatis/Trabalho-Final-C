@@ -65,23 +65,6 @@ void calcularMediaMensal(const char *nomeArquivo) {
     printf("Relatorio de media mensal salvo no arquivo '%s'.\n", nomeArquivo);
 }
 
-void identificarExtremosRecursivo(int i, int *maiorTemp, int *menorTemp, char *diaMaiorTemp, char *diaMenorTemp) {
-    if (i >= total_registros) {
-        return;
-    }
-
-    if (registros[i].temp_max > *maiorTemp) {
-        *maiorTemp = registros[i].temp_max;
-        sprintf(diaMaiorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-    }
-    if (registros[i].temp_min < *menorTemp) {
-        *menorTemp = registros[i].temp_min;
-        sprintf(diaMenorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-    }
-
-    identificarExtremosRecursivo(i + 1, maiorTemp, menorTemp, diaMaiorTemp, diaMenorTemp);
-}
-
 void identificarExtremos(const char *nomeArquivo) {
     if (total_registros == 0) {
         printf("Nenhum dado cadastrado para identificar extremos.\n");
@@ -89,10 +72,13 @@ void identificarExtremos(const char *nomeArquivo) {
     }
 
     int maiorTemp = -1000, menorTemp = 1000;
+    float maiorPrecipitacao = -1.0, menorPrecipitacao = 1000.0;
     char diaMaiorTemp[20], diaMenorTemp[20];
+    char diaMaiorPrecipitacao[20], diaMenorPrecipitacao[20];
     char relatorio[5000] = "Relatorio de Dias com Extremos:\n";
 
     for (int i = 0; i < total_registros; i++) {
+        // Identificando os extremos de temperatura
         if (registros[i].temp_max > maiorTemp) {
             maiorTemp = registros[i].temp_max;
             sprintf(diaMaiorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
@@ -101,12 +87,27 @@ void identificarExtremos(const char *nomeArquivo) {
             menorTemp = registros[i].temp_min;
             sprintf(diaMenorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
         }
-    }
 
+        // Identificando os extremos de precipitação
+        if (registros[i].precipitacao > maiorPrecipitacao) {
+            maiorPrecipitacao = registros[i].precipitacao;
+            sprintf(diaMaiorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+        if (registros[i].precipitacao < menorPrecipitacao) {
+            menorPrecipitacao = registros[i].precipitacao;
+            sprintf(diaMenorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+    }
+// Adicionando os extremos ao relatório
     sprintf(relatorio + strlen(relatorio),
             "Dia mais quente: %s com %d°C\nDia mais frio: %s com %d°C\n",
             diaMaiorTemp, maiorTemp, diaMenorTemp, menorTemp);
 
+    sprintf(relatorio + strlen(relatorio),
+            "Dia com maior precipitação: %s com %.2f mm\nDia com menor precipitação: %s com %.2f mm\n",
+            diaMaiorPrecipitacao, maiorPrecipitacao, diaMenorPrecipitacao, menorPrecipitacao);
+
+    // Verificando dias com chuva intensa
     for (int i = 0; i < total_registros; i++) {
         if (registros[i].precipitacao > 50.0) {
             char linha[100];
@@ -118,7 +119,7 @@ void identificarExtremos(const char *nomeArquivo) {
 
     printf("%s", relatorio);
 
-    FILE *arquivo = fopen(nomeArquivo, "a");
+    FILE *arquivo = fopen(nomeArquivo, "w");
     if (arquivo == NULL) {
         printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
         return;
