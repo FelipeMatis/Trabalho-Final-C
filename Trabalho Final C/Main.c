@@ -28,174 +28,12 @@ void salvarCadastroNoArquivo(const char *nomeArquivo, Analise A) {
     fclose(arquivo);
 }
 
-void calcularMediaMensal(const char *nomeArquivo) {
-    if (total_registros == 0) {
-        printf("Nenhum dado cadastrado para calcular medias.\n");
-        return;
-    }
-
-    int somaTemp[12] = {0}, contador[12] = {0};
-    float somaPrecipitacao[12] = {0}; // Adicionado para calcular a média de precipitação
-    char relatorio[5000] = "Relatorio de Media Mensal:\n";
-
-    for (int i = 0; i < total_registros; i++) {
-        int mes = registros[i].mes - 1;
-        somaTemp[mes] += registros[i].temp_media;
-        somaPrecipitacao[mes] += registros[i].precipitacao; // Soma precipitação
-        contador[mes]++;
-    }
-
-    for (int i = 0; i < 12; i++) {
-        if (contador[i] > 0) {
-            char linha[150];
-            int mediaTemp = somaTemp[i] / contador[i];
-            float mediaPrecip = somaPrecipitacao[i] / contador[i]; // Média de precipitação
-            sprintf(linha, "Mes %02d: Media de Temperatura: %d°C, Media de Precipitacao: %.2f mm\n", 
-                    i + 1, mediaTemp, mediaPrecip);
-            strcat(relatorio, linha);
-        }
-    }
-
-    printf("%s", relatorio);
-
-    FILE *arquivo = fopen(nomeArquivo, "a");
-    if (arquivo == NULL) {
-        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
-        return;
-    }
-    fprintf(arquivo, "%s\n", relatorio);
-    fclose(arquivo);
-
-    printf("Relatorio de media mensal salvo no arquivo '%s'.\n", nomeArquivo);
-}
-
-
-void identificarExtremos(const char *nomeArquivo) {
-    if (total_registros == 0) {
-        printf("Nenhum dado cadastrado para identificar extremos.\n");
-        return;
-    }
-
-    int maiorTemp = -1000, menorTemp = 1000;
-    float maiorPrecipitacao = -1.0, menorPrecipitacao = 1000.0;
-    char diaMaiorTemp[20], diaMenorTemp[20];
-    char diaMaiorPrecipitacao[20], diaMenorPrecipitacao[20];
-    char relatorio[5000] = "Relatorio de Dias com Extremos:\n";
-
-    for (int i = 0; i < total_registros; i++) {
-        // Identificando os extremos de temperatura
-        if (registros[i].temp_max > maiorTemp) {
-            maiorTemp = registros[i].temp_max;
-            sprintf(diaMaiorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-        }
-        if (registros[i].temp_min < menorTemp) {
-            menorTemp = registros[i].temp_min;
-            sprintf(diaMenorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-        }
-
-        // Identificando os extremos de precipitação
-        if (registros[i].precipitacao > maiorPrecipitacao) {
-            maiorPrecipitacao = registros[i].precipitacao;
-            sprintf(diaMaiorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-        }
-        if (registros[i].precipitacao < menorPrecipitacao) {
-            menorPrecipitacao = registros[i].precipitacao;
-            sprintf(diaMenorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
-        }
-    }
-// Adicionando os extremos ao relatório
-    sprintf(relatorio + strlen(relatorio),
-            "Dia mais quente: %s com %d°C\nDia mais frio: %s com %d°C\n",
-            diaMaiorTemp, maiorTemp, diaMenorTemp, menorTemp);
-
-    sprintf(relatorio + strlen(relatorio),
-            "Dia com maior precipitação: %s com %.2f mm\nDia com menor precipitação: %s com %.2f mm\n",
-            diaMaiorPrecipitacao, maiorPrecipitacao, diaMenorPrecipitacao, menorPrecipitacao);
-
-    // Verificando dias com chuva intensa
-    for (int i = 0; i < total_registros; i++) {
-        if (registros[i].precipitacao > 50.0) {
-            char linha[100];
-            sprintf(linha, "Chuva Intensa registrada em: %04d-%02d-%02d\n",
-                    registros[i].ano, registros[i].mes, registros[i].dia);
-            strcat(relatorio, linha);
-        }
-    }
-
-    printf("%s", relatorio);
-
-    FILE *arquivo = fopen(nomeArquivo, "a"); // Modo append para não apagar dados
-    if (arquivo == NULL) {
-        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
-        return;
-    }
-    fprintf(arquivo, "%s\n", relatorio);
-    fclose(arquivo);
-}
-
-
-
-void gerarRelatorioAnual(const char *nomeArquivo) {
-    if (total_registros == 0) {
-        printf("Nenhum dado cadastrado para gerar relatorio anual.\n");
-        return;
-    }
-
-    int somaTemp[3000] = {0}, contador[3000] = {0}; 
-    float somaPrecipitacao[3000] = {0}; // Para calcular a média de precipitação
-    char relatorio[5000] = "Relatorio Anual de Temperaturas e Precipitacao:\n";
-
-    for (int i = 0; i < total_registros; i++) {
-        int ano = registros[i].ano;
-        somaTemp[ano] += registros[i].temp_media;
-        somaPrecipitacao[ano] += registros[i].precipitacao; // Soma precipitação do ano
-        contador[ano]++;
-    }
-
-    int tempAnterior = -1;
-    for (int i = 0; i < 3000; i++) {
-        if (contador[i] > 0) {
-            char linha[150];
-            int mediaTemp = somaTemp[i] / contador[i];
-            float mediaPrecip = somaPrecipitacao[i] / contador[i]; // Média de precipitação anual
-            sprintf(linha, "Ano: %04d\nMedia de Temperatura: %d°C, Media de Precipitacao: %.2f mm\n", 
-                    i, mediaTemp, mediaPrecip);
-            strcat(relatorio, linha);
-
-            if (tempAnterior != -1) {
-                if (mediaTemp > tempAnterior) {
-                    strcat(relatorio, "Tendencia: Aumento de temperatura.\n");
-                } else if (mediaTemp < tempAnterior) {
-                    strcat(relatorio, "Tendencia: Reducao de temperatura.\n");
-                } else {
-                    strcat(relatorio, "Tendencia: Temperatura estavel.\n");
-                }
-            }
-
-            tempAnterior = mediaTemp;
-        }
-    }
-
-    printf("%s", relatorio);
-
-    FILE *arquivo = fopen(nomeArquivo, "a");
-    if (arquivo == NULL) {
-        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
-        return;
-    }
-    fprintf(arquivo, "%s\n", relatorio);
-    fclose(arquivo);
-
-    printf("Relatorio anual salvo no arquivo '%s'.\n", nomeArquivo);
-}
-
-
 void cadastrarDados(const char *nomeArquivo) {
     if (total_registros >= MAX_REGISTROS) {
         printf("Limite de registros atingido!\n");
         return;
     }
-
+    
     Analise A;
     printf("Informe o ano (YYYY): ");
     scanf("%d", &A.ano);
@@ -243,6 +81,160 @@ void cadastrarDados(const char *nomeArquivo) {
     registros[total_registros++] = A;
     salvarCadastroNoArquivo(nomeArquivo, A);
     printf("Dados cadastrados com sucesso!\n");
+}
+
+void calcularMediaMensal(const char *nomeArquivo) {
+    if (total_registros == 0) {
+        printf("Nenhum dado cadastrado para calcular medias.\n");
+        return;
+    }
+
+    int somaTemp[12] = {0}, contador[12] = {0};
+    float somaPrecipitacao[12] = {0}; 
+    char relatorio[5000] = "Relatorio de Media Mensal:\n";
+
+    for (int i = 0; i < total_registros; i++) {
+        int mes = registros[i].mes - 1;
+        somaTemp[mes] += registros[i].temp_media;
+        somaPrecipitacao[mes] += registros[i].precipitacao; 
+        contador[mes]++;
+    }
+
+    for (int i = 0; i < 12; i++) {
+        if (contador[i] > 0) {
+            char linha[150];
+            int mediaTemp = somaTemp[i] / contador[i];
+            float mediaPrecip = somaPrecipitacao[i] / contador[i]; 
+            sprintf(linha, "Mes %02d: Media de Temperatura: %d°C, Media de Precipitacao: %.2f mm\n", 
+                    i + 1, mediaTemp, mediaPrecip);
+            strcat(relatorio, linha);
+        }
+    }
+
+    printf("%s", relatorio);
+
+    FILE *arquivo = fopen(nomeArquivo, "a");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
+        return;
+    }
+    fprintf(arquivo, "%s\n", relatorio);
+    fclose(arquivo);
+
+    printf("Relatorio de media mensal salvo no arquivo '%s'.\n", nomeArquivo);
+}
+
+void identificarExtremos(const char *nomeArquivo) {
+    if (total_registros == 0) {
+        printf("Nenhum dado cadastrado para identificar extremos.\n");
+        return;
+    }
+
+    int maiorTemp = -1000, menorTemp = 1000;
+    float maiorPrecipitacao = -1.0, menorPrecipitacao = 1000.0;
+    char diaMaiorTemp[20], diaMenorTemp[20];
+    char diaMaiorPrecipitacao[20], diaMenorPrecipitacao[20];
+    char relatorio[5000] = "Relatorio de Dias com Extremos:\n";
+
+    for (int i = 0; i < total_registros; i++) {
+        if (registros[i].temp_max > maiorTemp) {
+            maiorTemp = registros[i].temp_max;
+            sprintf(diaMaiorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+        if (registros[i].temp_min < menorTemp) {
+            menorTemp = registros[i].temp_min;
+            sprintf(diaMenorTemp, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+
+        if (registros[i].precipitacao > maiorPrecipitacao) {
+            maiorPrecipitacao = registros[i].precipitacao;
+            sprintf(diaMaiorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+        if (registros[i].precipitacao < menorPrecipitacao) {
+            menorPrecipitacao = registros[i].precipitacao;
+            sprintf(diaMenorPrecipitacao, "%04d-%02d-%02d", registros[i].ano, registros[i].mes, registros[i].dia);
+        }
+    }
+    sprintf(relatorio + strlen(relatorio),
+            "Dia mais quente: %s com %d°C\nDia mais frio: %s com %d°C\n",
+            diaMaiorTemp, maiorTemp, diaMenorTemp, menorTemp);
+
+    sprintf(relatorio + strlen(relatorio),
+            "Dia com maior precipitação: %s com %.2f mm\nDia com menor precipitação: %s com %.2f mm\n",
+            diaMaiorPrecipitacao, maiorPrecipitacao, diaMenorPrecipitacao, menorPrecipitacao);
+
+    for (int i = 0; i < total_registros; i++) {
+        if (registros[i].precipitacao > 50.0) {
+            char linha[100];
+            sprintf(linha, "Chuva Intensa registrada em: %04d-%02d-%02d\n",
+                    registros[i].ano, registros[i].mes, registros[i].dia);
+            strcat(relatorio, linha);
+        }
+    }
+
+    printf("%s", relatorio);
+
+    FILE *arquivo = fopen(nomeArquivo, "a"); 
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
+        return;
+    }
+    fprintf(arquivo, "%s\n", relatorio);
+    fclose(arquivo);
+}
+
+void gerarRelatorioAnual(const char *nomeArquivo) {
+    if (total_registros == 0) {
+        printf("Nenhum dado cadastrado para gerar relatorio anual.\n");
+        return;
+    }
+
+    int somaTemp[3000] = {0}, contador[3000] = {0}; 
+    float somaPrecipitacao[3000] = {0}; 
+    char relatorio[5000] = "Relatorio Anual de Temperaturas e Precipitacao:\n";
+
+    for (int i = 0; i < total_registros; i++) {
+        int ano = registros[i].ano;
+        somaTemp[ano] += registros[i].temp_media;
+        somaPrecipitacao[ano] += registros[i].precipitacao; 
+        contador[ano]++;
+    }
+
+    int tempAnterior = -1;
+    for (int i = 0; i < 3000; i++) {
+        if (contador[i] > 0) {
+            char linha[150];
+            int mediaTemp = somaTemp[i] / contador[i];
+            float mediaPrecip = somaPrecipitacao[i] / contador[i]; 
+            sprintf(linha, "Ano: %04d\nMedia de Temperatura: %d°C, Media de Precipitacao: %.2f mm\n", 
+                    i, mediaTemp, mediaPrecip);
+            strcat(relatorio, linha);
+
+            if (tempAnterior != -1) {
+                if (mediaTemp > tempAnterior) {
+                    strcat(relatorio, "Tendencia: Aumento de temperatura.\n");
+                } else if (mediaTemp < tempAnterior) {
+                    strcat(relatorio, "Tendencia: Reducao de temperatura.\n");
+                } else {
+                    strcat(relatorio, "Tendencia: Temperatura estavel.\n");
+                }
+            }
+
+            tempAnterior = mediaTemp;
+        }
+    }
+
+    printf("%s", relatorio);
+
+    FILE *arquivo = fopen(nomeArquivo, "a");
+    if (arquivo == NULL) {
+        printf("Erro ao abrir o arquivo para salvar o relatorio!\n");
+        return;
+    }
+    fprintf(arquivo, "%s\n", relatorio);
+    fclose(arquivo);
+
+    printf("Relatorio anual salvo no arquivo '%s'.\n", nomeArquivo);
 }
 
 void detectarComportamentosAnormais(const char *nomeArquivo) {
@@ -313,9 +305,6 @@ void detectarComportamentosAnormais(const char *nomeArquivo) {
     fclose(arquivo);
 }
 
-
-
-
 void ArrumarErro(const char *nomeArquivo) {
     if (total_registros == 0) {
         printf("Nenhum dado cadastrado para alterar.\n");
@@ -330,7 +319,6 @@ void ArrumarErro(const char *nomeArquivo) {
     printf("Informe o dia (DD): ");
     scanf("%d", &dia);
 
-    // Encontrar o registro correspondente
     int encontrado = -1;
     for (int i = 0; i < total_registros; i++) {
         if (registros[i].ano == ano && registros[i].mes == mes && registros[i].dia == dia) {
@@ -419,7 +407,7 @@ void ArrumarErro(const char *nomeArquivo) {
         }
     } while (opcao != 9);
 
-    FILE *arquivo = fopen(nomeArquivo, "w"); // Atualiza os dados no arquivo
+    FILE *arquivo = fopen(nomeArquivo, "w"); 
     if (arquivo == NULL) {
         printf("Erro ao abrir o arquivo para atualizar os dados.\n");
         return;
@@ -498,25 +486,12 @@ int removerRegistroPorData(const char *nomeArquivo) {
                 registros[i].ano, registros[i].mes, registros[i].dia);
         fprintf(novoArquivo, "Temperatura Minima: %.2f\n", registros[i].tempMin);
         fprintf(novoArquivo, "Temperatura Maxima: %.2f\n", registros[i].tempMax);
-        fprintf(novoArquivo, "Temperatura Media: %.2f\n\n", registros[i].tempMedia);
+        fprintf(novoArquivo, "Temperatura Media: %.2f\n", registros[i].tempMedia);
+        fprintf(novoArquivo, "Precipitacao: %.2f\n", registros[i].precipitacao);
+        fprintf(novoArquivo, "umidade: %.2f\n", registros[i].umidade);
+        fprintf(novoArquivo, "Velocidade do vento: %.2f\n\n", registros[i].velVento);
     }
     
-    fprintf(novoArquivo, "=== Relatórios ===\n\n");
-    float mediaMensal[12] = {0};
-    int contMensal[12] = {0};
-    
-    for (int i = 0; i < numRegistros; i++) {
-        mediaMensal[registros[i].mes - 1] += registros[i].tempMedia;
-        contMensal[registros[i].mes - 1]++;
-    }
-    for (int i = 0; i < 12; i++) {
-        if (contMensal[i] > 0) {
-            fprintf(novoArquivo, "Mes %d: Media de Temperatura: %.1f°C\n", 
-                    i + 1, mediaMensal[i] / contMensal[i]);
-        }
-    }
-    fprintf(novoArquivo, "\n");
-
     fclose(novoArquivo);
     remove(nomeArquivo);
     rename("temp.txt", nomeArquivo);
@@ -530,7 +505,6 @@ int main() {
     int opcao;
     char nomeArquivo[] = "dados_climaticos.txt";
 
-    // Ler os dados do arquivo antes de começar
     FILE *arquivo = fopen(nomeArquivo, "r");
     if (arquivo != NULL) {
         while (fscanf(arquivo, "Cadastro - Data: %d-%d-%d\n", 
